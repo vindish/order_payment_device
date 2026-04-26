@@ -1,0 +1,20 @@
+# Python
+
+**pycache**/
+*.pyc
+
+# venv
+
+backend/venv/
+
+# env
+
+backend/.env
+
+# db
+
+*.db
+
+# logs
+
+*.log
