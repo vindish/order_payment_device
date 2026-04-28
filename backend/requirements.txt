@@ -8,3 +8,4 @@ alembic
 pydantic
 python-jose[cryptography]
 python-dotenv
+pydantic-settings
