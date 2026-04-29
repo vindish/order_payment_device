@@ -9,3 +9,6 @@ pydantic
 python-jose[cryptography]
 python-dotenv
 pydantic-settings
+celery
+redis
+paho-mqtt

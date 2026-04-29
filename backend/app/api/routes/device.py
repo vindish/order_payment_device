@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.deps import get_db, get_current_user
 from app.services.device_service import DeviceService
 from app.schemas.device import DeviceCreate, DeviceOut
+from app.services.order_service import OrderService
 
 router = APIRouter(prefix="/device", tags=["device"])
 
@@ -25,3 +26,12 @@ def list_devices(
 ):
     service = DeviceService(db)
     return service.list_devices()
+
+
+@router.post("/event")
+def device_event(
+    order_id: int,
+    db: Session = Depends(get_db)
+):
+    service = OrderService(db)
+    return service.update_status(order_id, "DONE")
