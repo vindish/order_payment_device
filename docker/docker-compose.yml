@@ -1,6 +1,60 @@
-version: "3"
+version: "3.9"
+
 services:
-  app:
-    build: .
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: api
     ports:
       - "8000:8000"
+    depends_on:
+      - redis
+      - mqtt
+    environment:
+      REDIS_HOST: redis
+      MQTT_HOST: mqtt
+    restart: always
+
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  mqtt:
+    image: eclipse-mosquitto
+    container_name: mqtt
+    ports:
+      - "1883:1883"
+    restart: always
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
+    depends_on:
+      - redis
+    environment:
+      REDIS_HOST: redis
+      MQTT_HOST: mqtt
+    restart: always
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app123
+      POSTGRES_DB: app_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: always
+
+volumes:
+  pgdata:

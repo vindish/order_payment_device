@@ -2,7 +2,8 @@ fastapi
 uvicorn
 sqlalchemy
 python-dotenv
-passlib[bcrypt]
+bcrypt==3.2.2
+passlib[bcrypt]==1.7.4
 python-jose
 alembic
 pydantic
@@ -12,3 +13,4 @@ pydantic-settings
 celery
 redis
 paho-mqtt
+psycopg2-binary
