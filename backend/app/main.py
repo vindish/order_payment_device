@@ -1,14 +1,26 @@
 from fastapi import FastAPI
-from app.api.router import api_router
-from app.core.database import Base, engine
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+
+from app.api.router import api_router
+from app.core.config import settings
+
+app = FastAPI(title=settings.APP_NAME)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
 
     openapi_schema = get_openapi(
-        title="Device System",
+        title=settings.APP_NAME,
         version="1.0",
         routes=app.routes,
     )
@@ -17,7 +29,7 @@ def custom_openapi():
         "BearerAuth": {
             "type": "http",
             "scheme": "bearer",
-            "bearerFormat": "JWT"
+            "bearerFormat": "JWT",
         }
     }
 
@@ -25,12 +37,12 @@ def custom_openapi():
     return app.openapi_schema
 
 
-
-
-app = FastAPI(title="Device System")
 app.openapi = custom_openapi
 
-# 创建表（开发阶段用）
-Base.metadata.create_all(bind=engine)
 
-app.include_router(api_router)
+@app.get("/health", tags=["system"])
+def health_check():
+    return {"status": "ok", "service": settings.APP_NAME, "env": settings.ENV}
+
+
+app.include_router(api_router, prefix=settings.API_PREFIX)

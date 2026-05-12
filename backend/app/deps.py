@@ -18,7 +18,7 @@ def get_db():
 
 # ===== JWT =====
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/auth/login",
+    tokenUrl="/api/v1/auth/login",
     scheme_name="BearerAuth"
 )
 

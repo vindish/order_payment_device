@@ -1,5 +1,8 @@
+from fastapi import HTTPException
+
+from app.core.security import create_access_token, verify_password
 from app.repository.user_repo import UserRepository
-from app.core.security import verify_password, create_access_token
+
 
 class AuthService:
     def __init__(self, db):
@@ -8,12 +11,10 @@ class AuthService:
     def login(self, username: str, password: str):
         user = self.repo.get_by_username(username)
 
-        if not user:
-            raise Exception("用户不存在")
+        if not user or not verify_password(password, user.password):
+            raise HTTPException(status_code=401, detail="Invalid username or password")
 
-        if not verify_password(password, user.password):
-            raise Exception("密码错误")
+        if not user.is_active:
+            raise HTTPException(status_code=403, detail="User is disabled")
 
-        token = create_access_token({"sub": str(user.id)})
-
-        return token
+        return create_access_token({"sub": str(user.id)})

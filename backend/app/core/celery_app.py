@@ -1,16 +1,13 @@
 from celery import Celery
-from app.core.config import settings
 
+from app.core.config import settings
 
 celery_app = Celery(
     "app",
-    broker=f"redis://{settings.REDIS_HOST}:6379/0",
-    backend=f"redis://{settings.REDIS_HOST}:6379/0"
+    broker=settings.celery_broker_url,
+    backend=settings.celery_result_backend,
+    include=["app.tasks.device_tasks"],
 )
-
-# 👇 加这一行（关键）
-import app.tasks.device_tasks
-celery_app.autodiscover_tasks(["app.tasks"])
 
 celery_app.conf.update(
     task_serializer="json",
@@ -18,4 +15,6 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="Asia/Shanghai",
     enable_utc=True,
+    task_acks_late=True,
+    worker_prefetch_multiplier=1,
 )

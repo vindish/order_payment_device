@@ -18,3 +18,8 @@ class DeviceRepository:
     
     def get_by_id(self, device_id: int):
         return self.db.query(Device).filter(Device.id == device_id).first()
+
+    def update(self, device: Device):
+        self.db.commit()
+        self.db.refresh(device)
+        return device

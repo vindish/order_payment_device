@@ -1,17 +1,27 @@
-import paho.mqtt.client as mqtt
 import json
+import logging
 
-client = mqtt.Client()
+import paho.mqtt.client as mqtt
+
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+client = mqtt.Client(client_id=settings.MQTT_CLIENT_ID)
+
+if settings.MQTT_USERNAME:
+    client.username_pw_set(settings.MQTT_USERNAME, settings.MQTT_PASSWORD)
 
 try:
-    client.connect("localhost", 1883, 60)
-except Exception as e:
-    print("⚠️ MQTT 未启动，进入降级模式", e)
+    client.connect(settings.MQTT_HOST, settings.MQTT_PORT, 60)
+    client.loop_start()
+except Exception as exc:
+    logger.warning("MQTT is unavailable, using degraded publish mode: %s", exc)
     client = None
 
 
 def publish(topic: str, payload: dict):
+    body = json.dumps(payload, ensure_ascii=False)
     if client:
-        client.publish(topic, json.dumps(payload), qos=1)
-    else:
-        print(f"[MOCK MQTT] {topic} {payload}")
+        client.publish(topic, body, qos=1)
+        return
+    logger.info("[MOCK MQTT] %s %s", topic, body)

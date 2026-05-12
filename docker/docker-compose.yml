@@ -1,51 +1,9 @@
 version: "3.9"
 
 services:
-
-  backend:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    container_name: api
-    ports:
-      - "8000:8000"
-    depends_on:
-      - redis
-      - mqtt
-    environment:
-      REDIS_HOST: redis
-      MQTT_HOST: mqtt
-    restart: always
-
-  redis:
-    image: redis:7
-    container_name: redis
-    ports:
-      - "6379:6379"
-    restart: always
-
-  mqtt:
-    image: eclipse-mosquitto
-    container_name: mqtt
-    ports:
-      - "1883:1883"
-    restart: always
-
-  worker:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
-    depends_on:
-      - redis
-    environment:
-      REDIS_HOST: redis
-      MQTT_HOST: mqtt
-    restart: always
-
   postgres:
     image: postgres:15
-    container_name: postgres
+    container_name: opd-postgres
     environment:
       POSTGRES_USER: app
       POSTGRES_PASSWORD: app123
@@ -54,7 +12,107 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
-    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: opd-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: opd-mqtt
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mqttdata:/mosquitto/data
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: opd-api
+    environment:
+      ENV: prod
+      RUN_MIGRATIONS: "1"
+      SEED_ADMIN: "1"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-123456}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-secret}
+      DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      REDIS_HOST: redis
+      MQTT_HOST: mqtt
+      PAYMENT_CALLBACK_TOKEN: ${PAYMENT_CALLBACK_TOKEN:-replace-with-provider-secret}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: opd-worker
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
+    environment:
+      ENV: prod
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-123456}
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-secret}
+      DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      REDIS_HOST: redis
+      MQTT_HOST: mqtt
+      PAYMENT_CALLBACK_TOKEN: ${PAYMENT_CALLBACK_TOKEN:-replace-with-provider-secret}
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend.Dockerfile
+    container_name: opd-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   pgdata:
+  mqttdata:

@@ -1,36 +1,37 @@
+from datetime import datetime
+
 from fastapi import HTTPException
-from app.repository.order_repo import OrderRepository
+
+from app.core.config import settings
+from app.core.event_bus import publish
 from app.domain.enums import OrderStatus
 from app.domain.order_flow import can_transfer
-from app.core.event_bus import publish
+from app.repository.order_repo import OrderRepository
 
 
 class PaymentService:
     def __init__(self, db):
         self.repo = OrderRepository(db)
 
-    def handle_callback(self, order_id: int):
+    def handle_callback(self, order_id: int, provider: str, trade_no: str | None, token: str | None):
+        if settings.PAYMENT_CALLBACK_TOKEN and token != settings.PAYMENT_CALLBACK_TOKEN:
+            raise HTTPException(401, "Invalid payment callback token")
+
         order = self.repo.get_by_id(order_id)
-
         if not order:
-            raise HTTPException(404, "订单不存在")
+            raise HTTPException(404, "Order not found")
 
-        # ✅ 幂等
-        if order.status == OrderStatus.PAID:
-            return {"msg": "重复回调已忽略"}
+        if order.status in {OrderStatus.PAID.value, OrderStatus.UNLOCKING.value, OrderStatus.DONE.value}:
+            return {"msg": "Duplicate callback ignored", "order_id": order.id, "status": order.status}
 
-        # ✅ 状态机
-        if not can_transfer(order.status, OrderStatus.PAID):
-            raise HTTPException(400, "非法状态流转")
+        if not can_transfer(order.status, OrderStatus.PAID.value):
+            raise HTTPException(400, "Invalid order state for payment callback")
 
-        # ✅ 更新订单
-        order.status = OrderStatus.PAID
+        order.status = OrderStatus.PAID.value
+        order.payment_provider = provider
+        order.payment_trade_no = trade_no
+        order.paid_at = datetime.utcnow()
         self.repo.update(order)
 
-        # ✅ 发布事件（关键）
-        publish("ORDER_PAID", {
-            "order_id": order.id,
-            "device_id": order.device_id
-        })
-
-        return {"msg": "支付成功（异步开锁）"}
+        publish("ORDER_PAID", {"order_id": order.id, "device_id": order.device_id})
+        return {"msg": "Payment accepted", "order_id": order.id, "status": order.status}
