@@ -55,6 +55,42 @@ celery -A app.core.celery_app.celery_app worker --loglevel=info
 
 
 # update
+
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• 已完成一轮大升级并试运行通过。
+
+  主要补齐：
+
+  - 安全：设备鉴权、支付签名/回调 token 兼容、JWT refresh token、RBAC。
+  - 一致性：订单行锁、幂等键、outbox pattern、Celery retry、死信表。
+  - 微服务化：新增 user-service/order-service/payment-service/device-service 独立 FastAPI 入口和 compose 服务。
+  - 消息队列：新增 RabbitMQ，Celery broker 已从 Redis 切到 amqp://app:**@rabbitmq:5672//，Redis 保留作 result backend。
+  - IoT 平台基础：设备密钥、心跳、影子、指令下发、ACK、遥测表、规则定义表、设备命令表。
+
+  验证结果：
+
+  - docker compose -f docker/docker-compose.yml up -d --build 已成功。
+  - 所有容器 running/healthy：backend、frontend、4 个拆分服务、worker、scheduler、postgres、redis、mqtt、rabbitmq。
+  - Health 全部通过：8000、8101、8102、8103、8104。
+  - Alembic 当前版本：202605120002。
+  - Worker 日志确认 RabbitMQ：transport: amqp://app:**@rabbitmq:5672//。
+  - 支付链路已 smoke test：订单 PAID -> UNLOCKING，outbox PUBLISHED，设备 unlock 指令 SENT，死信为 0。
+  - .dockerignore 仍生效，backend build context 维持几十 KB 级别。
+
+  RabbitMQ 管理台现在在 http://localhost:15672，账号 app，密码 app123。
+
+  注意：这版是“可运行的服务化基础版”，不是完全物理拆库/拆仓的最终形态；时序数据库目前用 telemetry_points 表承接，后续可替换 TimescaleDB/InfluxDB。Celery 仍有 root 运行
+  warning，不影响功能，但生产部署应加非 root 用户。
+
+─ Worked for 38m 22s ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+
+
+
+# update
 已修改并试运行通过。
 
   改动：

@@ -102,6 +102,10 @@ def _stamp_baseline(connection) -> None:
             ")"
         )
     )
+    existing_revision = connection.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).scalar()
+    if existing_revision:
+        return
+
     connection.execute(
         text(
             "INSERT INTO alembic_version (version_num) VALUES (:revision) "

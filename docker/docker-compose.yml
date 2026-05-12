@@ -29,6 +29,22 @@ services:
       retries: 5
     restart: unless-stopped
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: opd-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: app
+      RABBITMQ_DEFAULT_PASS: app123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   mqtt:
     image: eclipse-mosquitto:2
     container_name: opd-mqtt
@@ -54,14 +70,19 @@ services:
       DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
       BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       REDIS_HOST: redis
+      CELERY_BROKER_URL: amqp://app:app123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
       MQTT_HOST: mqtt
       PAYMENT_CALLBACK_TOKEN: ${PAYMENT_CALLBACK_TOKEN:-replace-with-provider-secret}
+      PAYMENT_SIGNING_SECRET: ${PAYMENT_SIGNING_SECRET:-replace-with-payment-signing-secret}
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
       mqtt:
         condition: service_started
@@ -77,7 +98,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     container_name: opd-worker
-    command: celery -A app.core.celery_app.celery_app worker --loglevel=info
+    command: celery -A app.core.celery_app.celery_app worker --loglevel=info -Q default,device_commands,outbox
     environment:
       ENV: prod
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
@@ -86,12 +107,150 @@ services:
       DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
       BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       REDIS_HOST: redis
+      CELERY_BROKER_URL: amqp://app:app123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
       MQTT_HOST: mqtt
       PAYMENT_CALLBACK_TOKEN: ${PAYMENT_CALLBACK_TOKEN:-replace-with-provider-secret}
+      PAYMENT_SIGNING_SECRET: ${PAYMENT_SIGNING_SECRET:-replace-with-payment-signing-secret}
     depends_on:
       backend:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: opd-scheduler
+    command: celery -A app.core.celery_app.celery_app beat --loglevel=info
+    environment:
+      ENV: prod
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-secret}
+      DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      REDIS_HOST: redis
+      CELERY_BROKER_URL: amqp://app:app123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MQTT_HOST: mqtt
+      PAYMENT_CALLBACK_TOKEN: ${PAYMENT_CALLBACK_TOKEN:-replace-with-provider-secret}
+      PAYMENT_SIGNING_SECRET: ${PAYMENT_SIGNING_SECRET:-replace-with-payment-signing-secret}
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  user-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: opd-user-service
+    command: uvicorn app.main_user:app --host 0.0.0.0 --port 8000
+    environment:
+      ENV: prod
+      RUN_MIGRATIONS: "0"
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-secret}
+      DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      REDIS_HOST: redis
+      CELERY_BROKER_URL: amqp://app:app123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MQTT_HOST: mqtt
+      PAYMENT_SIGNING_SECRET: ${PAYMENT_SIGNING_SECRET:-replace-with-payment-signing-secret}
+    ports:
+      - "8101:8000"
+    depends_on:
+      backend:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: opd-order-service
+    command: uvicorn app.main_order:app --host 0.0.0.0 --port 8000
+    environment:
+      ENV: prod
+      RUN_MIGRATIONS: "0"
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-secret}
+      DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      REDIS_HOST: redis
+      CELERY_BROKER_URL: amqp://app:app123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MQTT_HOST: mqtt
+      PAYMENT_SIGNING_SECRET: ${PAYMENT_SIGNING_SECRET:-replace-with-payment-signing-secret}
+    ports:
+      - "8102:8000"
+    depends_on:
+      backend:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: opd-payment-service
+    command: uvicorn app.main_payment:app --host 0.0.0.0 --port 8000
+    environment:
+      ENV: prod
+      RUN_MIGRATIONS: "0"
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-secret}
+      DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      REDIS_HOST: redis
+      CELERY_BROKER_URL: amqp://app:app123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MQTT_HOST: mqtt
+      PAYMENT_CALLBACK_TOKEN: ${PAYMENT_CALLBACK_TOKEN:-replace-with-provider-secret}
+      PAYMENT_SIGNING_SECRET: ${PAYMENT_SIGNING_SECRET:-replace-with-payment-signing-secret}
+    ports:
+      - "8103:8000"
+    depends_on:
+      backend:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+
+  device-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: opd-device-service
+    command: uvicorn app.main_device:app --host 0.0.0.0 --port 8000
+    environment:
+      ENV: prod
+      RUN_MIGRATIONS: "0"
+      SECRET_KEY: ${SECRET_KEY:-change-me-in-production-secret}
+      DATABASE_URL: postgresql+psycopg2://app:app123@postgres:5432/app_db
+      BACKEND_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      REDIS_HOST: redis
+      CELERY_BROKER_URL: amqp://app:app123@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      MQTT_HOST: mqtt
+      PAYMENT_SIGNING_SECRET: ${PAYMENT_SIGNING_SECRET:-replace-with-payment-signing-secret}
+    ports:
+      - "8104:8000"
+    depends_on:
+      backend:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
       mqtt:
         condition: service_started

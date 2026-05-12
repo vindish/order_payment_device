@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default="change-me-in-production", min_length=16)
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     DATABASE_URL: str = "postgresql+psycopg2://app:app123@postgres:5432/app_db"
 
@@ -28,6 +29,8 @@ class Settings(BaseSettings):
     MQTT_CLIENT_ID: str = "order-payment-api"
 
     PAYMENT_CALLBACK_TOKEN: str = "replace-with-provider-secret"
+    PAYMENT_SIGNING_SECRET: str = "replace-with-payment-signing-secret"
+    DEVICE_TOKEN_EXPIRE_DAYS: int = 365
 
     @property
     def redis_url(self) -> str:

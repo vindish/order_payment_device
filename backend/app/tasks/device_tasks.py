@@ -1,9 +1,22 @@
+import json
+
 from app.core.celery_app import celery_app
 from app.core.database import SessionLocal
 from app.domain.enums import OrderStatus
+from app.models.messaging import DeadLetterEvent
 from app.repository.device_repo import DeviceRepository
 from app.repository.order_repo import OrderRepository
 from app.services.device_service import DeviceService
+from app.services.outbox_service import OutboxService
+
+
+@celery_app.task(name="app.tasks.device_tasks.dispatch_outbox_task")
+def dispatch_outbox_task():
+    db = SessionLocal()
+    try:
+        return {"dispatched": OutboxService(db).dispatch_due()}
+    finally:
+        db.close()
 
 
 @celery_app.task(
@@ -48,6 +61,14 @@ def handle_order_paid_task(self, payload):
                 order.error_message = str(exc)
                 if self.request.retries >= 5:
                     order.status = OrderStatus.FAILED.value
+                    db.add(
+                        DeadLetterEvent(
+                            source="device_command",
+                            payload=json.dumps(payload, ensure_ascii=False, default=str),
+                            error_message=str(exc),
+                            retry_count=self.request.retries,
+                        )
+                    )
                 db.commit()
         raise
     finally:

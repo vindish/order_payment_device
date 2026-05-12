@@ -11,8 +11,12 @@ def main():
 
     db = SessionLocal()
     try:
-        if not db.query(User).filter_by(username=username).first():
-            db.add(User(username=username, password=hash_password(password)))
+        user = db.query(User).filter_by(username=username).first()
+        if not user:
+            db.add(User(username=username, password=hash_password(password), role="admin"))
+            db.commit()
+        elif user.role != "admin":
+            user.role = "admin"
             db.commit()
     finally:
         db.close()
