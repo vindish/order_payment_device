@@ -2,6 +2,7 @@
 set -e
 
 if [ "${RUN_MIGRATIONS:-0}" = "1" ]; then
+  python -m app.scripts.prepare_migrations
   alembic upgrade head
 fi
 

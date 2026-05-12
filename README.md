@@ -52,3 +52,26 @@ celery -A app.core.celery_app.celery_app worker --loglevel=info
 ```
 
 真实微信支付/支付宝验签逻辑后续接入到 `PaymentService.handle_callback`。
+
+
+# update
+已修改并试运行通过。
+
+  改动：
+
+  - 新增 /home/uber/projects/.dockerignore，排除 backend/venv、__pycache__、本地 db、.next、node_modules 等。
+  - 移除 /home/uber/projects/docker/docker-compose.yml 里的 obsolete version 字段。
+  - 新增 /home/uber/projects/backend/app/scripts/prepare_migrations.py，用于兼容旧数据库已有表但 schema/Alembic 版本不完整的情况。
+  - 更新 /home/uber/projects/docker/backend-entrypoint.sh，迁移前先执行兼容准备脚本。
+
+  验证结果：
+
+  - backend/worker build context 从之前约 97.97MB 降到几十 KB，后续 build 基本走缓存。
+  - docker compose -f docker/docker-compose.yml up -d --build 已成功启动。
+  - opd-api healthy，opd-frontend running，opd-worker running。
+  - http://localhost:8000/health 返回：
+    {"status":"ok","service":"Order Payment Device","env":"prod"}
+  - http://localhost:3000 返回 200 OK。
+  - 数据库 alembic_version 已是 202605120001，旧表缺失字段已补齐。
+
+  剩余提示：worker 日志里还有 Celery 以 root 用户运行的安全 warning，不影响当前启动；后续可以单独加非 root 用户运行容器。当前 git 状态里 .vscode/ 是已有未跟踪项，我没有动它。
