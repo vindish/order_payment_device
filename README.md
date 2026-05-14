@@ -266,6 +266,13 @@ docs/                 # 项目说明和 AI 上下文
 | `MQTT_HOST` | MQTT broker 主机 | `mqtt` |
 | `PAYMENT_CALLBACK_TOKEN` | 支付回调兼容 token | `replace-with-provider-secret` |
 | `PAYMENT_SIGNING_SECRET` | 支付回调 HMAC 签名密钥 | `replace-with-payment-signing-secret` |
+| `OUT_TRADE_NO_PREFIX` | 商户订单号前缀，用于反查 `order_id` | `OPD-` |
+| `WECHAT_PAY_PUBLIC_KEY` | 微信支付平台证书公钥（PEM 或 base64） | 未设置 |
+| `WECHAT_PAY_API_V3_KEY` | 微信支付 APIv3 密钥，用于解密 `resource` | 未设置 |
+| `WECHAT_PAY_APP_ID` | 微信支付 AppID | 未设置 |
+| `WECHAT_PAY_MCH_ID` | 微信支付商户号 | 未设置 |
+| `ALIPAY_PUBLIC_KEY` | 支付宝公钥（PEM 或 base64） | 未设置 |
+| `ALIPAY_APP_ID` | 支付宝应用 AppID | 未设置 |
 | `ADMIN_USERNAME` | 初始化管理员用户名 | `admin` |
 | `ADMIN_PASSWORD` | 初始化管理员密码 | `123456` |
 
@@ -282,11 +289,19 @@ docs/                 # 项目说明和 AI 上下文
 
 ## 当前限制
 
-- 支付回调仍是预留实现，真实微信支付/支付宝验签需要接入 `PaymentService.handle_callback` 和 `payment_signing.py`。
 - 服务化入口共享同一个数据库和代码库，尚未做物理拆库拆仓。
 - 遥测目前写入普通 PostgreSQL 表 `telemetry_points`，高频数据可后续替换为 TimescaleDB 或 InfluxDB。
-- ESP32 示例仅有基础骨架，尚未实现 Wi-Fi、MQTT 订阅和 HTTP ACK。
 - 容器中的 Celery worker 当前可能以 root 用户运行，生产部署应改为非 root 用户。
+
+## 支付回调对接
+
+支付回调有三条路径：
+
+- `POST /api/v1/payments/callback`：内部 HMAC 签名回调，主要用于联调和工具脚本，兼容旧版 `PAYMENT_CALLBACK_TOKEN`。
+- `POST /api/v1/payments/callback/wechat`：微信支付 APIv3 异步通知。请求头需包含 `Wechatpay-Timestamp`、`Wechatpay-Nonce`、`Wechatpay-Signature`，请求体为微信原始 JSON。后端会用 `WECHAT_PAY_PUBLIC_KEY` 校验签名，并使用 `WECHAT_PAY_API_V3_KEY` 解密 `resource`，按 `out_trade_no` 反查订单。
+- `POST /api/v1/payments/callback/alipay`：支付宝异步通知。请求体为表单参数，后端使用 `ALIPAY_PUBLIC_KEY` 校验 `RSA2` 签名，并按 `out_trade_no` 反查订单。
+
+`out_trade_no` 默认采用 `{OUT_TRADE_NO_PREFIX}{order_id}` 形式，可在重试时附加 `-{suffix}`。
 
 ## 常用排障
 

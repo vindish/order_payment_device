@@ -32,6 +32,21 @@ class Settings(BaseSettings):
     PAYMENT_SIGNING_SECRET: str = "replace-with-payment-signing-secret"
     DEVICE_TOKEN_EXPIRE_DAYS: int = 365
 
+    # out_trade_no convention shared by manual/wechat/alipay flows.
+    OUT_TRADE_NO_PREFIX: str = "OPD-"
+
+    # WeChat Pay APIv3.  PEM body or single-line base64 of the platform
+    # certificate's public key, plus the 32-byte APIv3 key used to decrypt the
+    # ``resource`` payload of asynchronous notifications.
+    WECHAT_PAY_PUBLIC_KEY: str | None = None
+    WECHAT_PAY_API_V3_KEY: str | None = None
+    WECHAT_PAY_APP_ID: str | None = None
+    WECHAT_PAY_MCH_ID: str | None = None
+
+    # Alipay open API public key (PEM body or raw base64).
+    ALIPAY_PUBLIC_KEY: str | None = None
+    ALIPAY_APP_ID: str | None = None
+
     @property
     def redis_url(self) -> str:
         return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
