@@ -1,20 +1,43 @@
 # Python
-
-**pycache**/
-*.pyc
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # venv
-
 backend/venv/
+backend/.venv/
+backend/.deps_installed
 
 # env
-
+.env
 backend/.env
 
-# db
-
+# db / sqlite snapshots
 *.db
+*.sqlite
+*.sqlite3
 
 # logs
-
 *.log
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/npm-debug.log*
+
+# Docker volumes (named volumes are managed by Docker; ignore any local mounts)
+docker_mqttdata/
+docker_pgdata/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/

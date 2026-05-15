@@ -55,13 +55,11 @@ backend.env        # backend env sample/local env file
 - `backend/app/core/event_bus.py`: event publishing facade backed by outbox.
 - `backend/app/core/celery_app.py`: Celery app, queues, routes, beat schedule.
 - `backend/app/core/mqtt.py`: MQTT client and publish wrapper.
-- `backend/app/core/lifecycle.py`: shared lifecycle helper if needed by service entrypoints.
 
 ### Domain
 
 - `backend/app/domain/enums.py`: order and device status enums.
 - `backend/app/domain/order_flow.py`: allowed order status transitions.
-- `backend/app/domain/entities.py`: domain entity definitions if the domain layer grows.
 
 ### Models
 
@@ -71,12 +69,10 @@ backend.env        # backend env sample/local env file
 - `backend/app/models/order.py`: orders.
 - `backend/app/models/iot.py`: shadow, commands, telemetry, rules.
 - `backend/app/models/messaging.py`: outbox and dead letters.
-- `backend/app/models/role.py`: role-related persistence if used.
-- `backend/app/models/base.py` and `backend/app/models/__init__.py`: model registration helpers.
+- `backend/app/models/__init__.py`: model registration helpers.
 
 ### Repositories
 
-- `backend/app/repository/base.py`: base repository helper.
 - `backend/app/repository/user_repo.py`: user queries.
 - `backend/app/repository/device_repo.py`: device queries.
 - `backend/app/repository/order_repo.py`: order queries, including row locks.
@@ -84,7 +80,6 @@ backend.env        # backend env sample/local env file
 ### Tasks
 
 - `backend/app/tasks/device_tasks.py`: outbox dispatcher task and order-paid unlock task.
-- `backend/app/tasks/worker.py`: worker import/boot helper.
 
 ### Scripts
 

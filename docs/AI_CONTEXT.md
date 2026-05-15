@@ -27,17 +27,17 @@ The split services are separate FastAPI entrypoints in one monorepo with shared 
 1. `POST /api/v1/auth/login` returns access and refresh tokens.
 2. `POST /api/v1/devices` creates a device and returns `device_secret` once.
 3. `POST /api/v1/orders` creates an `INIT` order for a device.
-4. `POST /api/v1/payments/callback` accepts only `PAID` callbacks.
-5. `PaymentService.handle_callback` locks the order, sets it to `PAID`, and writes `ORDER_PAID` to `outbox_events`.
+4. `POST /api/v1/payments/callback`, `/callback/wechat`, or `/callback/alipay` accepts a paid callback.
+5. `PaymentService` locks the order, sets it to `PAID`, and writes `ORDER_PAID` to `outbox_events`.
 6. `dispatch_outbox_task` publishes due outbox rows to Celery.
-7. `handle_order_paid_task` changes order to `UNLOCKING` and calls `DeviceService.send_unlock`.
+7. `handle_order_paid_task` changes order to `UNLOCKING` and calls `DeviceService.issue_command`.
 8. `DeviceService.issue_command` writes `device_commands`, publishes MQTT, and marks the command `SENT`.
 9. Device calls `/devices/commands/ack` and later `/devices/events/unlocked?order_id=...`.
 10. `OrderService.update_status` moves `UNLOCKING -> DONE`.
 
 ## Key Files
 
-- `backend/app/services/payment_service.py`: payment callback, signature/token fallback, outbox enqueue.
+- `backend/app/services/payment_service.py`: payment callbacks, signature/token fallback, outbox enqueue.
 - `backend/app/services/order_service.py`: order creation and status transitions.
 - `backend/app/services/device_service.py`: device credentials, heartbeat, shadow, telemetry, command issue/ACK.
 - `backend/app/services/outbox_service.py`: reliable event dispatch and dead-letter handling.
@@ -55,6 +55,8 @@ The split services are separate FastAPI entrypoints in one monorepo with shared 
   - `X-Device-SN`
   - `X-Device-Token`
 - Device token is a generated secret returned during device creation. Only its hash is stored.
+- Manual payment callback uses HMAC signature if provided and falls back to `PAYMENT_CALLBACK_TOKEN`.
+- WeChat Pay APIv3 and Alipay callbacks use provider signatures and `out_trade_no`.
 
 ## Important State Values
 
@@ -114,7 +116,7 @@ Expected health body:
 
 ## Known Gaps
 
-- Real payment provider verification is not fully implemented.
+- Live payment provider credentials and certificates still need to be supplied for production use.
 - ESP32 code is only a minimal skeleton.
 - Telemetry uses PostgreSQL, not a dedicated time-series store.
 - Services share one database and one codebase.

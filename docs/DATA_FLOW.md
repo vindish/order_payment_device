@@ -29,10 +29,12 @@ OrderService.create_order
 Payment provider / manual callback
   |
   | POST /payments/callback
+  | POST /payments/callback/wechat
+  | POST /payments/callback/alipay
   v
 PaymentService.handle_callback
   |
-  | validates signature/token
+  | validates signature/token/provider signature
   | reserves/replays idempotency key
   | locks order row
   | INIT -> PAID

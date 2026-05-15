@@ -141,7 +141,7 @@ curl -X POST http://localhost:8000/api/v1/payments/callback \
 ```sql
 select id, status, retry_count, error_message from orders order by id desc limit 5;
 select id, command, status, payload from device_commands order by id desc limit 5;
-select id, event_name, status, retry_count, error_message from outbox_events order by id desc limit 5;
+select id, event_name, status, retry_count, published_at, error_message from outbox_events order by id desc limit 5;
 ```
 
 ## Local Backend Development

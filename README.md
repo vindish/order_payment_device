@@ -6,7 +6,7 @@ Order Payment Device 是一个事件驱动的订单支付开锁系统示例。�
 
 1. 管理员或运营人员创建设备。
 2. 用户针对设备创建订单。
-3. 支付平台回调订单支付成功。
+3. 支付平台回调订单支付成功，支持内部 `manual`、微信支付和支付宝回调。
 4. 后端通过 outbox pattern 发布 `ORDER_PAID` 事件。
 5. Celery worker 消费事件并向 MQTT topic 下发设备开锁命令。
 6. 设备上报 ACK、心跳、遥测或开锁完成事件。
@@ -194,6 +194,11 @@ curl -X POST http://localhost:8000/api/v1/payments/callback \
 ```
 
 支付成功后，系统会写入 outbox 事件，并由 Celery 触发设备开锁命令。
+
+微信支付和支付宝回调分别对应：
+
+- `POST /api/v1/payments/callback/wechat`
+- `POST /api/v1/payments/callback/alipay`
 
 ### 5. 设备 ACK 命令
 

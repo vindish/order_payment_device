@@ -91,6 +91,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   worker:
@@ -121,6 +122,12 @@ services:
         condition: service_healthy
       mqtt:
         condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.core.celery_app.celery_app inspect ping -d celery@$$HOSTNAME -t 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
     restart: unless-stopped
 
   scheduler:
@@ -173,6 +180,12 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   order-service:
@@ -199,6 +212,12 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   payment-service:
@@ -226,6 +245,12 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   device-service:
@@ -254,15 +279,23 @@ services:
         condition: service_healthy
       mqtt:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     restart: unless-stopped
 
   frontend:
     build:
       context: ..
       dockerfile: docker/frontend.Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
     container_name: opd-frontend
     environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000/api/v1}
     ports:
       - "3000:3000"
     depends_on:

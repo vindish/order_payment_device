@@ -13,8 +13,12 @@
 
 backend/venv/
 backend/.venv/
+backend/.deps_installed
+backend/.env
 backend/test.db
 backend/*.db
+backend/*.sqlite
+backend/*.sqlite3
 
 frontend/node_modules/
 frontend/.next/
@@ -26,3 +30,9 @@ docker_mqttdata/
 docker_pgdata/
 *.log
 *.tmp
+
+# Don't ship local helper scripts into the build context
+dev.bat
+prod.bat
+run.bat
+backend.env

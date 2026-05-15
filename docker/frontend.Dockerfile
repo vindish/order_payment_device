@@ -1,20 +1,24 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm install --no-audit --no-fund --network-timeout=100000
 
 FROM node:20-alpine AS builder
 WORKDIR /app
+ARG NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+ENV NEXT_PUBLIC_API_BASE_URL=$NEXT_PUBLIC_API_BASE_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend .
 RUN npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/.next ./.next
+ENV NODE_ENV=production \
+    HOSTNAME=0.0.0.0 \
+    PORT=3000
+# Use Next.js standalone output for a smaller, self-contained runtime image.
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]

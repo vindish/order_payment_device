@@ -53,6 +53,12 @@ Payment callback handling uses a transactional outbox:
 
 If dispatch fails, the committed outbox row remains available for Celery beat to retry every five seconds.
 
+Supported payment callback entrypoints:
+
+- `POST /api/v1/payments/callback`
+- `POST /api/v1/payments/callback/wechat`
+- `POST /api/v1/payments/callback/alipay`
+
 ## Async Processing
 
 Celery configuration is in `backend/app/core/celery_app.py`.
@@ -116,8 +122,9 @@ Device requests:
 Payment callback:
 
 - Does not use user JWT.
-- Uses HMAC signature if provided and valid.
-- Falls back to `PAYMENT_CALLBACK_TOKEN` compatibility token.
+- Manual callback uses HMAC signature if provided and valid.
+- Manual callback falls back to `PAYMENT_CALLBACK_TOKEN` compatibility token.
+- WeChat Pay and Alipay callbacks use provider signatures and `out_trade_no`.
 
 ## Deployment Notes
 
